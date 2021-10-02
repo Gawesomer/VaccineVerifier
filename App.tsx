@@ -26,10 +26,18 @@ export default function App() {
   };
 
   if (hasPermission === null) {
-    return (<Text>Requesting for camera permission</Text>);
+    return (
+      <View style={styles.container}>
+	<Text>Requesting for camera permission</Text>
+      </View>
+    );
   }
   if (hasPermission === false) {
-    return (<Text>No access to camera</Text>);
+    return (
+      <View style={styles.container}>
+	<Text>No access to camera</Text>
+      </View>
+    );
   }
 
   return (
