@@ -19,12 +19,6 @@ function shcTob64(shc: string): string {
   return b64digits.map((c) => String.fromCharCode(c)).join('');
 }
 
-function isValidJWS(keystore: KeyStore, jws: string): boolean {
-  let result = false;
-  Jose.JWS.createVerify(keystore).verify(jws).then(function(result) { result = true; }).catch((error) => { result = false; });
-  return result;
-}
-
 export default function App() {
   const JWKS_SK = {  // https://skphr.prd.telushealthspace.com/.well-known/jwks.json
     keys: [
@@ -58,15 +52,26 @@ export default function App() {
   }, []);  // Only run effect once on mount.
 
   const handleBarCodeScanned = ({ type, data }) => {
-    const isSuccess = isValidJWS(keystore, shcTob64(data));
-    setScanned(true);
-    Alert.alert(
-      isSuccess ? 'Scan succeeded' : 'Scan failed',
-      `Bar code with type ${type} and data ${data} has been scanned!`,
-      [
-        { text: 'OK', onPress: () => setScanned(false) },
-      ]
-    );
+    (async () => {
+      setScanned(true);
+      let isSuccess = true;
+      let message = `Bar code with type ${type} and data ${data} has been scanned!`;
+
+      try {
+	await Jose.JWS.createVerify(keystore).verify(shcTob64(data));
+      } catch (err) {
+	isSuccess = false;
+	message = `Bar code with type ${type} failed to validate with error:\n${err}`;
+      }
+
+      Alert.alert(
+	isSuccess ? 'Scan succeeded' : 'Scan failed',
+	message,
+	[
+	  { text: 'OK', onPress: () => setScanned(false) },
+	]
+      );
+    })();
   };
 
   if (hasPermission === null) {
