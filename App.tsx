@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { BarCodeScanner } from 'expo-barcode-scanner';
 import Jose from 'node-jose';
+import zlib from 'react-zlib-js';
 
 function shcTob64(shc: string): string {
   /* args:
@@ -10,6 +11,7 @@ function shcTob64(shc: string): string {
 
      returns:
      b64 url encoded jws string
+     format; header.payload.signature
   */
   shc = shc.slice(5);
   let b64digits = [];
@@ -17,6 +19,17 @@ function shcTob64(shc: string): string {
     b64digits.push(parseInt(shc[i]) * 10 + parseInt(shc[i + 1]) + 45);
   }
   return b64digits.map((c) => String.fromCharCode(c)).join('');
+}
+
+function decompressPayload(payload: string): string {
+  /* args:
+     payload - base64 url encoded, compressed with DEFLATE
+
+     returns:
+     success - decompressed payload
+     failure - undefined
+  */
+  return zlib.inflateRawSync(Buffer.from(payload, 'base64'));
 }
 
 export default function App() {
@@ -55,10 +68,12 @@ export default function App() {
     (async () => {
       setScanned(true);
       let isSuccess = true;
-      let message = `Bar code with type ${type} and data ${data} has been scanned!`;
+      let message = undefined;
 
       try {
-	await Jose.JWS.createVerify(keystore).verify(shcTob64(data));
+	const result = await Jose.JWS.createVerify(keystore).verify(shcTob64(data));
+	const payload = decompressPayload(result.payload);
+	message = `Bar code with type ${type} validated successfully with data:\n${payload}`;
       } catch (err) {
 	isSuccess = false;
 	message = `Bar code with type ${type} failed to validate with error:\n${err}`;
