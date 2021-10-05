@@ -27,13 +27,14 @@ function decompressPayload(payload: string): string {
 
      returns:
      success - decompressed payload
-     failure - undefined
+     failure - raises
   */
   return zlib.inflateRawSync(Buffer.from(payload, 'base64'));
 }
 
 export default function App() {
-  const JWKS_SK = {  // https://skphr.prd.telushealthspace.com/.well-known/jwks.json
+  const JWKS_SK_URL = 'https://skphr.prd.telushealthspace.com/.well-known/jwks.json';
+  let JWKS_SK = {  // hardcoded in case we're offline
     keys: [
       {
         kty: 'EC',
@@ -58,9 +59,21 @@ export default function App() {
   const [scanned, setScanned] = useState(null);
 
   useEffect(() => {
-    (async () => {
+    (async () => {  // Request camera permission
       const { status } = await BarCodeScanner.requestPermissionsAsync();
       setHasPermission(status === 'granted');
+    })();
+    (async () => {  // Update JWKS
+      try {
+	const response = await fetch(JWKS_SK_URL);
+	if (!response.ok) {
+	  throw 'Invalid HTTP response';
+	}
+	const jwks = await response.json();
+	JWKS_SK = jwks;
+      } catch (err) {
+	console.log(`Failed to update JWKS: ${err}`);
+      }
     })();
   }, []);  // Only run effect once on mount.
 
